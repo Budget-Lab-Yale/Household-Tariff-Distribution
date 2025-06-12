@@ -11,6 +11,8 @@ cbo_estimates3 = read_csv('./resources/cbo/households_ranked_by_inc_after_trans_
 cbo_estimates5 = read_csv('./resources/cbo/households_ranked_by_inc_after_trans_tax_table_05_components_ibtt_1979_2021.csv')
 cbo_estimates6 = read_csv('./resources/cbo/households_ranked_by_inc_after_trans_tax_table_06_components_means_tested_transfers_1979_2021.csv')
 cbo_estimates7 = read_csv('./resources/cbo/households_ranked_by_inc_after_trans_tax_table_07_components_federal_taxes_1979_2021.csv')
+cbo_obbba      = read_csv('./resources/cbo/obbba.csv')
+
 
 # Combine CBO data with CEX
 combined = cbo_estimates5 %>% 
@@ -29,7 +31,7 @@ combined = cbo_estimates5 %>%
     str_sub(income_group, start = -9) == '_quintile', 
   ) %>% 
   mutate(
-    income_group = case_when(
+    quintile = case_when(
       income_group == 'lowest_quintile'  ~ 1, 
       income_group == 'second_quintile'  ~ 2, 
       income_group == 'middle_quintile'  ~ 3, 
@@ -38,25 +40,47 @@ combined = cbo_estimates5 %>%
     )
   ) %>% 
   
+  # Pare down to what we need
+  mutate(social_security + ssi + snap) %>% 
+  select(quintile, num_households, inc_after_transfers_taxes, social_security, ssi, snap) %>% 
+  
+  # Impute deciles
+  expand_grid(row = 1:2) %>% 
+  mutate(decile = 1:10) %>% 
+  left_join(cbo_obbba, by = 'decile') %>% 
+  group_by(quintile) %>% 
+  mutate(
+    
+    # Split households in half
+    num_households = num_households / 2,
+    
+    # Calculate within-quintile ratio of lower half to upper half
+    ratio_atti = obbba.atti / mean(obbba.atti), 
+    ratio_ss   = obbba.social_insurance / mean(obbba.social_insurance),
+    ratio_snap = obbba.means_tested / mean(obbba.means_tested), 
+    
+    # Apply ratios
+    inc_after_transfers_taxes = inc_after_transfers_taxes * ratio_atti, 
+    social_security           = social_security * ratio_ss,
+    ssi                       = social_security * ratio_ss,
+    snap                      = snap * ratio_snap, 
+    
+    # Calculate total benefits with COLAs
+    indexed_benefits = social_security + ssi + snap
+  ) %>% 
+  ungroup() %>% 
+  select(decile, num_households, obbba.pct_chg, obbba.avg_chg, inc_after_transfers_taxes, indexed_benefits) %>% 
+
   # Join CEX 
   left_join(
     cex_estimates %>% 
-      mutate(
-        income_group = case_when(
-          pctile == 0  ~ 1, 
-          pctile == 20 ~ 2, 
-          pctile == 40 ~ 3, 
-          pctile == 60 ~ 4, 
-          pctile == 80 ~ 5, 
-        ), 
-        cy_ratio.cex = Outlays / `After-tax income`
-      ) %>% 
-      select(year, income_group, c.cex = Outlays, cy_ratio.cex),
-    by = c('income_group', 'year')
+      mutate(cy_ratio.cex = Outlays / `After-tax income`) %>% 
+      select(year, decile, c.cex = Outlays, cy_ratio.cex),
+    by = 'decile'
   ) %>% 
   
   # Join tax offset
-  left_join(tax_offset, by = 'income_group') %>% 
+  left_join(tax_offset, by = 'decile') %>% 
   
   # Calculate implied consumption 
   mutate(
@@ -69,10 +93,10 @@ combined = cbo_estimates5 %>%
   mutate(
     
     # Direct burden is higher prices
-    direct_burden = -c * pce_effect$by_quintile, 
+    direct_burden = -c * pce_effect$by_decile, 
     
     # Benefit offset from indexed cash programs
-    benefit_offset = (social_security + ssi + snap) * pce_effect$overall, 
+    benefit_offset = indexed_benefits * pce_effect$overall, 
     
     # Net burden
     net_burden = direct_burden + benefit_offset + tax_offset,
@@ -85,11 +109,6 @@ combined = cbo_estimates5 %>%
       .fns   = ~ . / inc_after_transfers_taxes, 
       .names = '{col}.pct_chg_atti'
     )
-  ) %>% 
-  
-  # Calculate excise tax shares for comparison
-  mutate(
-    share_excise = excise_taxes * num_households  / sum(excise_taxes * num_households)
   )
 
 #--------
@@ -99,27 +118,30 @@ combined = cbo_estimates5 %>%
 # Write data table
 data_table = combined %>% 
   mutate(
-    `Income Quintile` = factor(income_group, 
-                               levels = 1:5, 
-                               labels = c('Bottom quintile', 'Second quintile', 'Middle quintile', 'Fourth quintile', 'Top quintile')),
-    `OBBBA (via CBO)` = round(cbo_obbba, 3),
-    Tariffs           = round(direct_burden.pct_chg_atti, 3), 
-    Total             = round(direct_burden.pct_chg_atti + cbo_obbba, 3)  
+    `Income Decile`          = decile,
+    `OBBBA (via CBO)_pctchg` = round(obbba.pct_chg, 3),
+    Tariffs_pctchg           = round(net_burden.pct_chg_atti, 3),
+    Total_pctchg             = round(net_burden.pct_chg_atti + obbba.pct_chg, 3), 
+    `OBBBA (via CBO)_avg`    = round(obbba.avg_chg, 3),
+    Tariffs_avg              = round(net_burden, 3),
+    Total_avg                = round(net_burden + obbba.avg_chg, 3)
   ) %>% 
-  select(contains(' '), Tariffs, Total) 
+  select(contains(' '), contains('_avg'), contains('_pctchg'))
 
 dir.create('./output', showWarnings = F)
 
 data_table %>% 
   write_csv('./output/table.csv')
 
-# Produce contribution chart
+# Produce contribution charts
 data_table %>%
-  rename(`New 2025 Tariffs as of June 1st` = Tariffs) %>% 
-  pivot_longer(-c(`Income Quintile`, Total)) %>% 
-  ggplot(aes(x = `Income Quintile`, y = value, fill = name)) +
+  select(`Income Decile`, ends_with('_pctchg')) %>%
+  rename(`New 2025 Tariffs as of June 1st` = Tariffs_pctchg, 
+         `OBBBA (via CBO)` = `OBBBA (via CBO)_pctchg`) %>% 
+  pivot_longer(-c(`Income Decile`, Total_pctchg)) %>% 
+  ggplot(aes(x = `Income Decile`, y = value, fill = name)) +
   geom_col() +
-  geom_point(aes(y = Total), size = 5, show.legend = F) + 
+  geom_point(aes(y = Total_pctchg), size = 5, show.legend = F) + 
   theme_minimal() + 
   geom_hline(yintercept = 0) + 
   theme(
@@ -141,15 +163,54 @@ data_table %>%
     fill = element_blank(),
     caption = "Source: The Budget Lab calculations"
   ) + 
-  scale_x_discrete(labels = c('Bottom quintile', 'Second quintile', 'Middle quintile', 'Fourth quintile', 'Top quintile')) +
-  
+  scale_x_continuous(breaks = 1:10) +
   scale_y_continuous(
     labels = scales::percent_format(), 
-    breaks = seq(-0.05, 0.03, 0.01)
+    breaks = seq(-0.07, 0.03, 0.01)
   ) +
   scale_fill_brewer(palette = 'Set1') + 
   ggtitle(
-    'Figure 1. Combined Effects of the House-Passed OBBBA and Tariffs, 2026', 
+    'Figure 1. Combined Effects of the House-Passed OBBBA and Tariffs, 2026-2034', 
     subtitle = 'Percent Change in Income After Taxes and Transfers'
+  )
+
+data_table %>%
+  select(`Income Decile`, ends_with('_avg')) %>%
+  rename(`New 2025 Tariffs as of June 1st` = Tariffs_avg, 
+         `OBBBA (via CBO)` = `OBBBA (via CBO)_avg`) %>% 
+  pivot_longer(-c(`Income Decile`, Total_avg)) %>% 
+  ggplot(aes(x = `Income Decile`, y = value, fill = name)) +
+  geom_col() +
+  geom_point(aes(y = Total_avg), size = 5, show.legend = F) + 
+  theme_minimal() + 
+  geom_hline(yintercept = 0) + 
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), 
+    axis.text.x = element_text(size = 12), 
+    axis.text.y = element_text(size = 12),
+    axis.title.x = element_text(size = 14), 
+    legend.text = element_text(size = 12), 
+    legend.position = "top",
+    plot.margin = unit(c(5, 5, 5, 5), "mm"),
+    text = element_text(size = 12),
+    plot.title = element_text(face = "bold"),
+    plot.caption = element_text(hjust = 0) 
+  ) + 
+  guides(fill = guide_legend(ncol = 1)) + 
+  labs(
+    y = element_blank(), 
+    fill = element_blank(),
+    caption = "Source: The Budget Lab calculations"
+  ) + 
+  scale_x_continuous(breaks = 1:10) +
+  scale_y_continuous(
+    labels = scales::dollar_format(), 
+    breaks = seq(-4000, 12000, 2000)
+  ) +
+  scale_fill_brewer(palette = 'Set1') + 
+  ggtitle(
+    'Figure 1. Combined Effects of the House-Passed OBBBA and Tariffs, 2026-2034', 
+    subtitle = 'Average Change in Income After Taxes and Transfers'
   )
   

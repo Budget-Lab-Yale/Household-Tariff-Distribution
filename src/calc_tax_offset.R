@@ -29,15 +29,15 @@ if (!load_precalculated_tax_offset) {
     filter(expanded_inc - liab_iit - liab_pr_ee > 0) %>% 
     mutate(
       equiv_atti = (expanded_inc - liab_iit - liab_pr_ee) / sqrt(1 + (filing_status == 2) + n_dep), 
-      income_group = cut(
+      decile = cut(
         x      = equiv_atti,
-        breaks = c(0, wtd.quantile(x = equiv_atti, weights = weight, probs = seq(0.2, 0.8, 0.2)), Inf), 
+        breaks = c(0, wtd.quantile(x = equiv_atti, weights = weight, probs = seq(0.1, 0.9, 0.1)), Inf), 
         labels = F
       )
     ) %>% 
     
     # Calculate average change in liability
-    group_by(income_group) %>% 
+    group_by(decile) %>% 
     summarise(tax_offset = sum((liab_iit_net_tariffs - liab_iit_net) * weight) / sum(weight))
     
   # Save output

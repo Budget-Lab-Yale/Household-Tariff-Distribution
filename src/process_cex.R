@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 # process_cex.R
 #
-# Loads 2019 SCF and extracts consumption shares by quintiles of eqivalized
+# Loads 2019 CEX and extracts consumption shares by deciles of eqivalized
 # income
 #------------------------------------------------------------------------------
 
@@ -46,15 +46,15 @@ build_table = function(year) {
   fmli = fmli %>%
     mutate(
       # quantiles by equivalized after-tax income
-      pctile = cut(x              = ati_equiv,
+      decile = cut(x              = ati_equiv,
                    breaks         = c(-Inf,
                                       wtd.quantile(x       = fmli$ati_equiv,
-                                                   probs   = c(.2,.4,.6,.8),
+                                                   probs   = seq(0.1, 0.9, 0.1),
                                                    weights = fmli$FINLWT21),
                                       Inf),
-                   labels         = c(0,.2,.4,.6,.8)*100,
+                   labels         = seq(1, 10, 1),
                    include.lowest = TRUE),
-      pctile = as.numeric(levels(pctile))[pctile]
+      decile = as.numeric(levels(decile))[decile]
     ) %>%
     mutate(
       
@@ -84,7 +84,7 @@ build_table = function(year) {
   
   fmli %>%
     mutate(year = year) %>%
-    group_by(year, pctile) %>%
+    group_by(year, decile) %>%
     summarise(
       across(.cols = all_of(inc),
              .fns  = ~ weighted.mean(x = .x, w = FINLWT21)),
@@ -92,7 +92,7 @@ build_table = function(year) {
              .fns  = ~ (sum(.x * FINLWT21) / sum(popwt))),
       .groups = 'drop'
     ) %>%
-    setnames(c('year', 'pctile', names)) %>% 
+    setnames(c('year', 'decile', names)) %>% 
     return()
 }
 
