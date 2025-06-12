@@ -69,7 +69,7 @@ combined = cbo_estimates5 %>%
     indexed_benefits = social_security + ssi + snap
   ) %>% 
   ungroup() %>% 
-  select(decile, num_households, obbba.pct_chg, obbba.avg_chg, inc_after_transfers_taxes, indexed_benefits) %>% 
+  select(decile, num_households, obbba.atti, obbba.pct_chg, obbba.avg_chg, inc_after_transfers_taxes, indexed_benefits) %>% 
 
   # Join CEX 
   left_join(
@@ -109,24 +109,39 @@ combined = cbo_estimates5 %>%
       .fns   = ~ . / inc_after_transfers_taxes, 
       .names = '{col}.pct_chg_atti'
     )
-  )
+  ) 
+
+# To get final dollar impacts, multiply percent changes by CBO ATTI 
+results = combined %>% 
+  select(decile, obbba.atti, obbba_avg = obbba.avg_chg, obbba_pctchg = obbba.pct_chg, tariffs_pctchg = net_burden.pct_chg_atti) %>% 
+  mutate(tariffs_avg = obbba.atti * tariffs_pctchg)
 
 #--------
 # Output
 #--------
 
 # Write data table
-data_table = combined %>% 
+data_table = results %>% 
   mutate(
     `Income Decile`          = decile,
-    `OBBBA (via CBO)_pctchg` = round(obbba.pct_chg, 3),
-    Tariffs_pctchg           = round(net_burden.pct_chg_atti, 3),
-    Total_pctchg             = round(net_burden.pct_chg_atti + obbba.pct_chg, 3), 
-    `OBBBA (via CBO)_avg`    = round(obbba.avg_chg, 3),
-    Tariffs_avg              = round(net_burden, 3),
-    Total_avg                = round(net_burden + obbba.avg_chg, 3)
+    `Average income after transfers and taxes (2025 dollars)` = round(obbba.atti, -1),
+    `OBBBA (via CBO)_pctchg` = round(obbba_pctchg, 3),
+    Tariffs_pctchg           = round(tariffs_pctchg, 3),
+    Total_pctchg             = round(tariffs_pctchg + obbba_pctchg, 3), 
+    `OBBBA (via CBO)_avg`    = round(obbba_avg, -1),
+    Tariffs_avg              = round(tariffs_avg, -1),
+    Total_avg                = round(tariffs_avg + obbba_avg, -1)
   ) %>% 
-  select(contains(' '), contains('_avg'), contains('_pctchg'))
+  select(
+    `Income Decile`,
+    `Average income after transfers and taxes (2025 dollars)`,
+    `OBBBA (via CBO)_pctchg`,
+    Tariffs_pctchg,
+    Total_pctchg,
+    `OBBBA (via CBO)_avg`,
+    Tariffs_avg,
+    Total_avg
+  )
 
 dir.create('./output', showWarnings = F)
 
@@ -135,9 +150,7 @@ data_table %>%
 
 # Produce contribution charts
 data_table %>%
-  select(`Income Decile`, ends_with('_pctchg')) %>%
-  rename(`New 2025 Tariffs as of June 1st` = Tariffs_pctchg, 
-         `OBBBA (via CBO)` = `OBBBA (via CBO)_pctchg`) %>% 
+  select(`Income Decile`, ` OBBBA (via CBO)` = `OBBBA (via CBO)_pctchg`, `2025 Tariff Increases` = Tariffs_pctchg, Total_pctchg) %>%
   pivot_longer(-c(`Income Decile`, Total_pctchg)) %>% 
   ggplot(aes(x = `Income Decile`, y = value, fill = name)) +
   geom_col() +
@@ -170,14 +183,12 @@ data_table %>%
   ) +
   scale_fill_brewer(palette = 'Set1') + 
   ggtitle(
-    'Figure 1. Combined Effects of the House-Passed OBBBA and Tariffs, 2026-2034', 
-    subtitle = 'Percent Change in Income After Taxes and Transfers'
+    'Figure 1. Combined Effects of the House-Passed OBBBA and Tariffs', 
+    subtitle = 'Average annual change in household resources as a percentage of current law income after transfers and taxes (2026–2034)'
   )
 
 data_table %>%
-  select(`Income Decile`, ends_with('_avg')) %>%
-  rename(`New 2025 Tariffs as of June 1st` = Tariffs_avg, 
-         `OBBBA (via CBO)` = `OBBBA (via CBO)_avg`) %>% 
+  select(`Income Decile`, ` OBBBA (via CBO)` = `OBBBA (via CBO)_avg`, `2025 Tariff Increases` = Tariffs_avg, Total_avg) %>%
   pivot_longer(-c(`Income Decile`, Total_avg)) %>% 
   ggplot(aes(x = `Income Decile`, y = value, fill = name)) +
   geom_col() +
@@ -210,7 +221,8 @@ data_table %>%
   ) +
   scale_fill_brewer(palette = 'Set1') + 
   ggtitle(
-    'Figure 1. Combined Effects of the House-Passed OBBBA and Tariffs, 2026-2034', 
-    subtitle = 'Average Change in Income After Taxes and Transfers'
+    'Figure 2. Combined Effects of the House-Passed OBBBA and Tariffs', 
+    subtitle = 'Average annual change in household resources, 2025 dollars (2026–2034)'
   )
+
   
