@@ -108,6 +108,8 @@ data_table = combined %>%
   ) %>% 
   select(contains(' '), Tariffs, Total) 
 
+dir.create('./output', showWarnings = F)
+
 data_table %>% 
   write_csv('./output/table.csv')
 
