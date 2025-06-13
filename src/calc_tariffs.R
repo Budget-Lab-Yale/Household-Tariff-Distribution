@@ -62,7 +62,7 @@ combined = cbo_estimates5 %>%
     # Apply ratios
     inc_after_transfers_taxes = inc_after_transfers_taxes * ratio_atti, 
     social_security           = social_security * ratio_ss,
-    ssi                       = social_security * ratio_ss,
+    ssi                       = ssi  * ratio_ss,
     snap                      = snap * ratio_snap, 
     
     # Calculate total benefits with COLAs
@@ -99,7 +99,7 @@ combined = cbo_estimates5 %>%
     benefit_offset = indexed_benefits * pce_effect$overall, 
     
     # Net burden
-    net_burden = direct_burden + benefit_offset + tax_offset,
+    net_burden = direct_burden + benefit_offset - tax_offset,
   ) %>% 
   
   # Express in relative terms
@@ -115,6 +115,15 @@ combined = cbo_estimates5 %>%
 results = combined %>% 
   select(decile, obbba.atti, obbba_avg = obbba.avg_chg, obbba_pctchg = obbba.pct_chg, tariffs_pctchg = net_burden.pct_chg_atti) %>% 
   mutate(tariffs_avg = obbba.atti * tariffs_pctchg)
+
+# Calculate scaling factor from gross pce
+combined %>% 
+  mutate(
+    pce_effect = pce_effect$by_decile, 
+    scaling_factor = -net_burden.pct_chg_atti / pce_effect
+  ) %>% 
+  select(decile, atti = obbba.atti, pce_effect, scaling_factor) %>% 
+  write_csv('./output/scaling_factors.csv')
 
 #--------
 # Output
