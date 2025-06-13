@@ -41,7 +41,6 @@ combined = cbo_estimates5 %>%
   ) %>% 
   
   # Pare down to what we need
-  mutate(social_security + ssi + snap) %>% 
   select(quintile, num_households, inc_after_transfers_taxes, social_security, ssi, snap) %>% 
   
   # Impute deciles

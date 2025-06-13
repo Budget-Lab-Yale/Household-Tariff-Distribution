@@ -1,0 +1,1 @@
+This repository contains the code used to produce the calculations in this [Budget Lab report](https://budgetlab.yale.edu/research/combined-distributional-effects-one-big-beautiful-bill-act-and-tariffs).
