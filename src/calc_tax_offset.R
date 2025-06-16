@@ -13,10 +13,10 @@
 if (!load_precalculated_tax_offset) {
 
   # Read microdata for 2026
-  tax_simulator_microdata = fread('./resources/tax-simulator/microdata/2026.csv') %>% 
+  tax_simulator_microdata = fread('./resources/tax-simulator/microdata/obbba_2026.csv') %>% 
     tibble() %>% 
     left_join(
-      fread('./resources/tax-simulator/microdata/tariffs_2026.csv') %>% 
+      fread('./resources/tax-simulator/microdata/obbba_tariffs_2026.csv') %>% 
         tibble() %>% 
         select(id, liab_iit_net_tariffs = liab_iit_net), 
       by = 'id'
