@@ -11,7 +11,7 @@ cbo_estimates3 = read_csv('./resources/cbo/households_ranked_by_inc_after_trans_
 cbo_estimates5 = read_csv('./resources/cbo/households_ranked_by_inc_after_trans_tax_table_05_components_ibtt_1979_2021.csv')
 cbo_estimates6 = read_csv('./resources/cbo/households_ranked_by_inc_after_trans_tax_table_06_components_means_tested_transfers_1979_2021.csv')
 cbo_estimates7 = read_csv('./resources/cbo/households_ranked_by_inc_after_trans_tax_table_07_components_federal_taxes_1979_2021.csv')
-cbo_obbba      = read_csv('./resources/cbo/obbba.csv')
+cbo_obbba      = read_csv(paste0('./resources/cbo/obbba_', obbba_version, '.csv'))
 
 
 # Combine CBO data with CEX
@@ -78,14 +78,27 @@ combined = cbo_estimates5 %>%
     by = 'decile'
   ) %>% 
   
-  # Join tax offset
-  left_join(tax_offset, by = 'decile') %>% 
+  # Join tax offset and put in 2019 terms
+  left_join(
+    tax_offset %>% 
+      rename(tax_offset_2025 = tax_offset), 
+    by = 'decile'
+  ) %>% 
+  mutate(tax_offset = (tax_offset_2025 / obbba.atti) * inc_after_transfers_taxes) %>% 
+  select(-tax_offset_2025) %>% 
   
   # Calculate implied consumption 
   mutate(
     share_c  = c.cex / sum(c.cex),
-    c        = (pce_2019 * 1e9 * share_c) / (num_households * 1e6),
-    cy_ratio = c / inc_after_transfers_taxes
+    imputed_c_share = (pce_2019 * 1e9 * share_c) / (num_households * 1e6), 
+    imputed_c_ratio = cy_ratio.cex * inc_after_transfers_taxes,
+    c = if_else(
+      decile == 1, 
+      imputed_c_share, 
+      0.5 * imputed_c_share + 0.5 * imputed_c_ratio
+    ), 
+    c = c * (pce_2019 / (sum(c * num_households) / 1e3)), 
+    imputed_cy_ratio = c / inc_after_transfers_taxes
   ) %>% 
   
   # Calculate implied tariff burden, in 2019 terms
@@ -162,9 +175,9 @@ data_table %>%
   pivot_longer(-c(`Income Decile`, Total_pctchg)) %>% 
   ggplot(aes(x = `Income Decile`, y = value, fill = name)) +
   geom_col() +
-  geom_point(aes(y = Total_pctchg), size = 5, show.legend = F) + 
-  theme_minimal() + 
   geom_hline(yintercept = 0) + 
+  geom_point(aes(y = Total_pctchg), size = 5, fill = "white", color = "black", shape = 21, stroke = 1, show.legend = F) + 
+  theme_minimal() + 
   theme(
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank(), 
@@ -191,7 +204,7 @@ data_table %>%
   ) +
   scale_fill_brewer(palette = 'Set1') + 
   ggtitle(
-    'Figure 1. Combined Effects of the House-Passed OBBBA and Tariffs', 
+    'Figure 1. Combined Effects of the OBBBA and Tariffs', 
     subtitle = 'Average annual change in household resources as a percentage of current law income after transfers and taxes (2026–2034)'
   )
 
@@ -200,9 +213,9 @@ data_table %>%
   pivot_longer(-c(`Income Decile`, Total_avg)) %>% 
   ggplot(aes(x = `Income Decile`, y = value, fill = name)) +
   geom_col() +
-  geom_point(aes(y = Total_avg), size = 5, show.legend = F) + 
-  theme_minimal() + 
   geom_hline(yintercept = 0) + 
+  geom_point(aes(y = Total_avg), size = 5, fill = "white", color = "black", shape = 21, stroke = 1, show.legend = F) +
+  theme_minimal() + 
   theme(
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank(), 
@@ -225,11 +238,11 @@ data_table %>%
   scale_x_continuous(breaks = 1:10) +
   scale_y_continuous(
     labels = scales::dollar_format(), 
-    breaks = seq(-4000, 12000, 2000)
+    breaks = seq(-6000, 12000, 2000)
   ) +
   scale_fill_brewer(palette = 'Set1') + 
   ggtitle(
-    'Figure 2. Combined Effects of the House-Passed OBBBA and Tariffs', 
+    'Figure 2. Combined Effects of the OBBBA and Tariffs', 
     subtitle = 'Average annual change in household resources, 2025 dollars (2026–2034)'
   )
 

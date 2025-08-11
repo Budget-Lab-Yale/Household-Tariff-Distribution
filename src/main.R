@@ -23,21 +23,15 @@ pce_2026 = 21504   # Source: CBO outlook
 # Effect of June 1st tariffs on PCE price index 
 # (exogenous input from Ernie's model, here: https://budgetlab.yale.edu/research/state-us-tariffs-june-1-2025)
 pce_effect = list(
-  overall   = 0.0149417, 
-  by_decile = c(0.015475829, 
-                0.014814164,
-                0.015661254,
-                0.015100163,
-                0.015517472,	
-                0.015755464,	
-                0.016052386,	
-                0.015493089,	
-                0.015151623,
-                0.013919) 
+  overall   = 0.01832, 
+  by_decile = c(0.0199, 0.0181, 0.0190, 0.0183, 0.0185, 0.0191, 0.0193, 0.0187, 0.0182, 0.0170)
 )
 
 # Whether to load precalculate tax offset or not (T if external to TBL)
-load_precalculated_tax_offset = F
+load_precalculated_tax_offset = T
+
+# OBBBA version ('house' or 'passed')
+obbba_version = 'passed'
 
 #--------------
 # Run analysis
