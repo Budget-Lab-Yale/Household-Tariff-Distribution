@@ -171,12 +171,13 @@ data_table %>%
 
 # Produce contribution charts
 data_table %>%
-  select(`Income Decile`, ` OBBBA (via CBO)` = `OBBBA (via CBO)_pctchg`, `2025 Tariff Increases` = Tariffs_pctchg, Total_pctchg) %>%
+  select(`Income Decile`, `OBBBA (via CBO)` = `OBBBA (via CBO)_pctchg`, `2025 Tariff Increases` = Tariffs_pctchg, Total_pctchg) %>%
   pivot_longer(-c(`Income Decile`, Total_pctchg)) %>% 
   ggplot(aes(x = `Income Decile`, y = value, fill = name)) +
-  geom_col() +
-  geom_hline(yintercept = 0) + 
-  geom_point(aes(y = Total_pctchg), size = 5, fill = "white", color = "black", shape = 21, stroke = 1, show.legend = F) + 
+  geom_col(colour = 'black', size = 0.3, alpha = 0.8) +
+  geom_hline(yintercept = 0, size =1) +
+  geom_point(aes(y = Total_pctchg), size = 10, fill = "white", color = "black", shape = 21, stroke = 0.3, show.legend = F) + 
+  geom_text(aes(y = Total_pctchg, label = paste0(round(Total_pctchg * 100, 1), "%")), size = 2.5) +
   theme_minimal() + 
   theme(
     panel.grid.major.x = element_blank(),
@@ -200,7 +201,7 @@ data_table %>%
   scale_x_continuous(breaks = 1:10) +
   scale_y_continuous(
     labels = scales::percent_format(), 
-    breaks = seq(-0.07, 0.03, 0.01)
+    breaks = seq(-0.08, 0.03, 0.01)
   ) +
   scale_fill_brewer(palette = 'Set1') + 
   ggtitle(
@@ -209,12 +210,16 @@ data_table %>%
   )
 
 data_table %>%
-  select(`Income Decile`, ` OBBBA (via CBO)` = `OBBBA (via CBO)_avg`, `2025 Tariff Increases` = Tariffs_avg, Total_avg) %>%
+  select(`Income Decile`, `OBBBA (via CBO)` = `OBBBA (via CBO)_avg`, `2025 Tariff Increases` = Tariffs_avg, Total_avg) %>%
   pivot_longer(-c(`Income Decile`, Total_avg)) %>% 
   ggplot(aes(x = `Income Decile`, y = value, fill = name)) +
-  geom_col() +
-  geom_hline(yintercept = 0) + 
-  geom_point(aes(y = Total_avg), size = 5, fill = "white", color = "black", shape = 21, stroke = 1, show.legend = F) +
+  geom_col(colour = 'black', size = 0.3, alpha = 0.8) +
+  geom_hline(yintercept = 0, size = 1) + 
+  geom_point(aes(y = Total_avg), size = 11, fill = "white", color = "black", shape = 21, stroke = 0.3, show.legend = F) +
+  geom_text(aes(y = Total_avg, label = ifelse(Total_avg >= 0, 
+                                              paste0("$", round(Total_avg/1000, 1), "K"),
+                                              paste0("-$", round(abs(Total_avg)/1000, 1), "K"))), 
+            size = 2.5) +
   theme_minimal() + 
   theme(
     panel.grid.major.x = element_blank(),
@@ -238,7 +243,7 @@ data_table %>%
   scale_x_continuous(breaks = 1:10) +
   scale_y_continuous(
     labels = scales::dollar_format(), 
-    breaks = seq(-6000, 12000, 2000)
+    breaks = seq(-6000, 14000, 2000)
   ) +
   scale_fill_brewer(palette = 'Set1') + 
   ggtitle(

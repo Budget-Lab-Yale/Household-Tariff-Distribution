@@ -18,7 +18,6 @@ library(Hmisc)
 
 # Set parameters
 pce_2019 = 14437.5 # Source: BEA
-pce_2026 = 21504   # Source: CBO outlook
 
 # Effect of June 1st tariffs on PCE price index 
 # (exogenous input from Ernie's model, here: https://budgetlab.yale.edu/research/state-us-tariffs-june-1-2025)
