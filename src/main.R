@@ -19,8 +19,7 @@ library(Hmisc)
 # Set parameters
 pce_2019 = 14437.5 # Source: BEA
 
-# Effect of June 1st tariffs on PCE price index 
-# (exogenous input from Ernie's model, here: https://budgetlab.yale.edu/research/state-us-tariffs-june-1-2025)
+# TBL's estimate of the effect of recent tariffs on PCE price index
 pce_effect = list(
   overall   = 0.01832, 
   by_decile = c(0.0199, 0.0181, 0.0190, 0.0183, 0.0185, 0.0191, 0.0193, 0.0187, 0.0182, 0.0170)
