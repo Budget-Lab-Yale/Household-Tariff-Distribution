@@ -19,15 +19,23 @@ library(Hmisc)
 # Set parameters
 pce_2019 = 14437.5 # Source: BEA
 
-# Effect of June 1st tariffs on PCE price index 
-# (exogenous input from Ernie's model, here: https://budgetlab.yale.edu/research/state-us-tariffs-june-1-2025)
+# Effect of tariffs on PCE price index 
 pce_effect = list(
-  overall   = 0.01832, 
-  by_decile = c(0.0199, 0.0181, 0.0190, 0.0183, 0.0185, 0.0191, 0.0193, 0.0187, 0.0182, 0.0170)
+  overall   = 0.01234993908, 
+  by_decile = c(0.012486111, 
+                0.011646179, 
+                0.012324758, 
+                0.011979526, 
+                0.01234642, 
+                0.012620015, 
+                0.012870445, 
+                0.012613274, 
+                0.012536559, 
+                0.011980749) 
 )
 
 # Whether to load precalculate tax offset or not (T if external to TBL)
-load_precalculated_tax_offset = T
+load_precalculated_tax_offset = F
 
 # OBBBA version ('house' or 'passed')
 obbba_version = 'passed'

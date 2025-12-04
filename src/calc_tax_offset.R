@@ -56,7 +56,7 @@ if (!load_precalculated_tax_offset) {
     # Calculate average change in liability over the window
     group_by(decile) %>% 
     summarise(
-      tax_offset = sum(((liab_iit_net_tariffs - liab_iit_net) / inflation_index) * weight) / sum(weight), 
+      tax_offset = (sum(((liab_iit_net_tariffs - liab_iit_net) / inflation_index) * weight) / sum(weight)) * (0.01696 / 0.01832), 
       .groups = 'drop'
     )
     
